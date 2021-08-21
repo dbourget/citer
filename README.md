@@ -93,4 +93,15 @@ account. Then visit this page:
 
 [https://philpapers.org/utils/create_api_user.html]
 
+# Copyright and contributing
+
+This tool is open source under the GPL3 license (details in
+accompanying LICENSE file). Feel free to redistribute the full package
+(including the license) and to modify it. 
+
+I would be grateful for pull
+requests including bug fixes and new features. It would be especially
+nice to add support for other indexes. I will not do this myself but I
+will continue to perform basic maintenance of this tool--I use it a lot!
+
 
