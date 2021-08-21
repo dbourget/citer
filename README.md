@@ -11,9 +11,9 @@ Example search tag:
 
 When citer finds this, it will search PhilPapers for "bourget
 consciousness intentionality" and inject a citation for the first match.
-The item will be added to a bibliographic file. In latex mode (the only
+ In latex mode (the only
 mode that is fully supported at present), it will insert a \citeyear
-command (customizable). 
+command (customizable).  The item will also be added to a bibliographic file.
 
 Example ID tag:
 
@@ -59,12 +59,16 @@ regular latex files as follows:
 
 `ruby citer.rb -i yourfile.tex -o withcites.tex -b refs.bib -f bibtex`
 
+To view all the options, try:
+
+`ruby citer.rb -h`
+
 # Installation
 
 There are some dependencies. First, you must install the Ruby
-interpreter. Then you must install some "ruby gems" that are used by the
+interpreter (google it if unsure). Then you must install some "ruby gems" that are used by the
 script. The included script install.sh should install the required
-dependencies for you on mac or linux. Simply run
+gem for you on mac or linux. Simply run
 
 `sh install.sh`
 
