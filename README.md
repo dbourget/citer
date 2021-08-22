@@ -84,11 +84,11 @@ In addition, you will need to create the configuration file. It should
 be located in your home directory and called *.citer-config.yaml* (don't
 forget the dot at the beginning). It should have this format:
 
-`
+```
 apiId: [your api id; see below]  
 apiKey: [your api key]  
 cacheRoot: [where you want the cache]  
-`
+```
 
 A template config file is included in the example/ subdirectory.
 
