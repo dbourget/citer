@@ -85,9 +85,9 @@ be located in your home directory and called *.citer-config.yaml* (don't
 forget the dot at the beginning). It should have this format:
 
 `
-apiId: [your api id; see below]
-apiKey: [your api key]
-cacheRoot: [where you want the cache]
+apiId: [your api id; see below]  
+apiKey: [your api key]  
+cacheRoot: [where you want the cache]  
 `
 
 The cache location should not be volatile (so not /tmp). Your home directory is just
