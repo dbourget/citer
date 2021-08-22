@@ -155,12 +155,7 @@ class Citer
 #		 	bibentry = find_by_query($1, $2)
 #			before + format_cite(bibentry)
 #		end
-		if false and l =~ /black-and-white/
-			ap "new seg at end"
-			ap newsegments
-			ap l
-			exit(1)
-		end
+
 		l
 	end
 
@@ -416,12 +411,6 @@ File.open(file).each do |line|
 	outfile.puts citer.line(line).chomp
 end
 citer.flush_match_log
-
 bibfile.puts citer.biblio
-if args[:format] == "bibtex"
-	outfile.puts citer.escape "\\bibliographystyle{#{args[:style]}}"
-	outfile.puts citer.escape "\\bibliography{#{bibfilename}}"
-end
-
 
 

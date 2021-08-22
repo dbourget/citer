@@ -54,10 +54,15 @@ for the generated bibliography, which is always in bibtex. "-f" is the
 in-text citation format. Currently only bibtex is fully supported. This
 means inserting \citeyear (another command can be specified using another argument). "-x" is to provide an existing bibliography that will be added to the output bibliography. This is useful for things that cannot be inserted by citer. "-e" specifies that the inserted bibtex should be escaped for latex embedding within markdown.
 
-This is untested, but in principle the tool should be usable with
-regular latex files as follows:
+Plain latex example:
 
 `ruby citer.rb -i yourfile.tex -o withcites.tex -b refs.bib -f bibtex`
+
+You need to manually add the `\bibliography` commmand to your latex
+document, using "refs" as the filename.
+
+An example latex document and execution command (in run.sh) are included in
+the example/ subdirectory.
 
 To view all the options, try:
 
