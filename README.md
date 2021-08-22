@@ -90,6 +90,8 @@ apiKey: [your api key]
 cacheRoot: [where you want the cache]  
 `
 
+A template config file is included in the example/ subdirectory.
+
 The cache location should not be volatile (so not /tmp). Your home directory is just
 fine. It is configurable because it can be convenient to put it on
 Dropbox or similar---running citer on a lot of citations can be very
