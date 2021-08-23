@@ -35,7 +35,7 @@ It caches both the search query results and the article metadata. It has
 options (see help) to reset the cache if need be (say, if the metadata
 have been updated in the index or new search results are available).
 The caching isn't only to be nice: you need it to avoid being throttled.
-PhilPapers currently limits API queries to 1000 per hour.
+PhilPapers currently limits API queries to 1000 per day and 1000 per hour.
 
 PhilPapers is an open access, wiki-like service. If you're not getting
 the results you expect, perhaps you can contribute a fix to the index.
