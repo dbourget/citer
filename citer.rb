@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 require 'pstore'
 require 'net/http'
 require 'etc'
@@ -381,8 +382,7 @@ citer = Citer.new
 
 opt_parser.parse!
 if args[:forget]
-	c = Citer.new(args, nil)
-	c.delete_cached(args[:forget])	
+	citer.delete_cached(args[:forget])	
 	exit(0)
 end
 
