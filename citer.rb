@@ -165,9 +165,10 @@ class Citer
 	end
 	
 	def format_cite(data)
-		r = "???"
-		if @args[:format] == "date"
-			r = data[:entry][:year]
+		#dbg "Citation: #{data[:id]} => #{r}".green
+		@biblist[data[:id]] ||= data
+		if @args[:format] == "md"
+			return data[:entry][:year]
 		elsif @args[:format] == "bibtex"
       r = ""
       #special case of forthcoming item
@@ -175,10 +176,10 @@ class Citer
         r += "forthco"
       end
 			r += "\\" + @args[:command] + "{#{data[:bibtex_id]}}"	
+      return escape r
+    else
+      return "???"
 		end
-		#dbg "Citation: #{data[:id]} => #{r}".green
-		@biblist[data[:id]] ||= data
-		escape r
 	end
 
 	def find_by_query(before, query)
@@ -204,10 +205,11 @@ class Citer
 		end
 		name_str = names.reverse.join(" ")
 		pp_query = "#{name_str} #{query}"
+    #ap ["check pp query", pp_query]
 		if @matches.has_key? pp_query
 			eId = @matches.get pp_query
 			data = find_by_id eId
-			log_match query, data
+			log_match pp_query, data
 			return data
 		end
 		uri = Base_URL + "/s/" + URI.escape(pp_query) + "?format=data"
@@ -234,9 +236,8 @@ class Citer
 	def log_match(query, data, context = "(unavailable)")
 		entry = data[:entry]
 		t = "= Citation match:"
-		t += "\n  #{query} ".green # | context: #{context}".green
-		t += "\n  ==> ".blue
-		t += "\n  #{entry[:authors]} (#{entry[:year]}) #{entry[:title]}.".magenta
+    t += "\n  Query string used: " + "#{query}".green
+		t += "\n  Hit: " + "#{entry[:authors]} (#{entry[:year]}) #{entry[:title]}.".magenta
 		@match_log << t
 		info t
 	end
@@ -250,10 +251,38 @@ class Citer
 		r = []
 		@biblist.each_value do |entry|
 			#puts "adding to bibitex: #{entry[:bibtex]}"
-			r << (@args[:format] == "date" ? 'NOT IMPLEMENTED' : entry[:bibtex])
+			r << (@args[:format] == "md" ? format_text_cite(entry) : entry[:bibtex])
 		end
-		r.join("\n")
+    r.sort.join("\n")
 	end
+
+  def format_text_cite(entry)
+    #ap entry
+    entry = entry[:entry]
+    c = ""
+    aus = entry[:authors] #.map { |s| reverse_name(s) }
+    if aus.size > 1
+      l = aus.last
+      others = aus[0..-2]
+      c += "#{others.join("; ")} and #{l}"
+    else
+      c += aus.first
+    end
+    c += " (" + entry[:year] + "). "
+    if entry[:type] == "book"
+      c += "_#{entry[:title]}_"
+    else
+      c += '"' + entry[:title] + '"'
+    end
+    c += "." unless entry[:title] =~ /\?\!\.$/
+
+    return "* " + c + " " + entry[:pubInfo] + "\n"
+  end
+
+  def reverse_name(string)
+    list = string.split(/, /)
+    "#{list[1]} #{list[0]}"
+  end
 
 	def get_entry(id)
 		d = get_format(id, "data")
@@ -344,7 +373,7 @@ opt_parser = OptionParser.new do |opts|
 	opts.on("-oOUTFILE", "--out=OUTPUT", "The file to output the modified text to. Defaults to standard output (print out to terminal).") do |f|
 		args[:out] = f
 	end
-	opts.on("-fFORMAT", "--format=FORMAT", "How to format citations. Can be either 'date' or 'bibtex'. Defaults to bibtex.") do |f|
+	opts.on("-fFORMAT", "--format=FORMAT", "How to format citations. Can be either 'md' or 'bibtex'. Defaults to bibtex.") do |f|
 		args[:format] = f
 	end
 	opts.on("-sSTYLE", "--style=STYLE", "The bibtex style to use (e.g. 'apa'). Defaults to apa.") do |f|
@@ -396,6 +425,14 @@ info "Reading #{file}"
 outfile = args[:out].nil? ? $stdout : File.open(args[:out], "w")
 #info "Outputting to #{outfile.path}"
 bibfile = outfile
+
+citer.prepare(args, bibfile)
+File.open(file).each do |line|
+	outfile.puts citer.line(line).chomp
+end
+
+citer.flush_match_log
+
 bibfilename = args[:bibfile] ||= "#{file}.bib"
 if args[:format] == "bibtex"
 	info "Saving bibliography to #{bibfilename}"
@@ -404,13 +441,10 @@ if args[:format] == "bibtex"
 		x = File.open(args[:extra], "r")
 		bibfile.write(x.read)
 	end
+elsif args[:format] == "md"
+  info "Saving bibliography to md format at the end of #{outfile.path}"
 end
 
-citer.prepare(args, bibfile)
-File.open(file).each do |line|
-	outfile.puts citer.line(line).chomp
-end
-citer.flush_match_log
+bibfile.puts "# Bibliography"
 bibfile.puts citer.biblio
-
 
