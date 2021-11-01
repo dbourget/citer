@@ -213,12 +213,18 @@ class Citer
 			return data
 		end
 		uri = Base_URL + "/s/" + URI.escape(pp_query) + "?format=data"
-		results = get_uri(uri)
-		parsed = JSON.parse results, symbolize_names: true
-		if parsed.length == 0
-			$stderr.puts "Could not find any match for query tag @[#{query}]. The generated search (taking context into account) was #{pp_query}.".red
-			exit(1)
-		end
+    parsed = ""
+    begin
+      results = get_uri(uri)
+      parsed = JSON.parse results, symbolize_names: true
+    rescue Exception => e
+      puts "A problem occurred fetching the data for query \"#{pp_query}\". Maybe there are illegal characters in the query? Punctuation is not allowed.".red
+    ensure
+      if parsed.length == 0
+        $stderr.puts "Could not find any match for query tag @[#{query}]. The generated search (taking context into account) was #{pp_query}.".red
+        exit(1)
+      end
+    end
 				
 		entry = parsed[0]
 		#ap entry
