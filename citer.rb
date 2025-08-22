@@ -8,7 +8,7 @@ require 'optparse'
 require 'uri'
 require 'yaml'
 
-Base_URL = "https://philpapers.org"
+Base_URL = "https://api.philpapers.org"
 Config_file = Etc.getpwuid.dir + "/.citer-config.yaml"
 # this tool uses two local databases:
 # a) a local database for each project (taken from current working directory). this stores the most recently resolved REFs items in the project.
@@ -68,16 +68,65 @@ class DB
 		@store.transaction(true) { @store.root? key }
 	end
 	def delete_cached(str)
+		deleted_count = 0
 		@store.transaction(false) {
 			@store.roots.each { |key|
-        #puts "matching #{key} against #{str}"
-				if key =~ /#{str}/
-          val = @store[key]
-          puts "Forgetting #{key}"
+				val = @store[key]
+				should_delete = false
+				match_type = ""
+				
+				begin
+					# Try as regex first - check key, and if it's a hash, check relevant fields
+					if key =~ /#{str}/
+						should_delete = true
+						match_type = "key"
+					elsif val.is_a?(Hash)
+						# Check bibtex_id, bibtex content, and other searchable fields
+						searchable_content = [
+							val[:bibtex_id],
+							val[:bibtex],
+							val[:id],
+							(val[:entry] && val[:entry][:title])
+						].compact.join(" ")
+						
+						if searchable_content =~ /#{str}/
+							should_delete = true
+							match_type = "content"
+						end
+					end
+				rescue RegexpError
+					# If regex fails, fall back to literal string matching
+					if key.include?(str)
+						should_delete = true
+						match_type = "key (literal)"
+					elsif val.is_a?(Hash)
+						searchable_content = [
+							val[:bibtex_id],
+							val[:bibtex],
+							val[:id],
+							(val[:entry] && val[:entry][:title])
+						].compact.join(" ")
+						
+						if searchable_content.include?(str)
+							should_delete = true
+							match_type = "content (literal)"
+						end
+					end
+				end
+				
+				if should_delete
+					puts "Forgetting #{key} (matched via #{match_type})"
 					@store.delete key
+					deleted_count += 1
 				end
 			}
 		}
+		
+		if deleted_count == 0
+			puts "Warning: No entries found matching '#{str}'"
+		else
+			puts "Deleted #{deleted_count} entries matching '#{str}'"
+		end
 	end
 end
 
@@ -149,6 +198,7 @@ class Citer
 			if inner_segs.size >= 1
 				segments.unshift inner_segs.join "]"
 			end
+#			exit if query =~ /australian inferentialism/
 		end
 		l = newsegments.join + segments.shift unless newsegments.size == 0
 #		l.gsub!(/^(.*)\@\[(.*?)\]/) do |m|
@@ -210,6 +260,7 @@ class Citer
 			eId = @matches.get pp_query
 			data = find_by_id eId
 			log_match pp_query, data
+#			dbg "found in cache"
 			return data
 		end
 		uri = Base_URL + "/s/" + URI.escape(pp_query) + "?format=data"
@@ -227,7 +278,6 @@ class Citer
     end
 				
 		entry = parsed[0]
-		#ap entry
 		data = find_by_id entry[:id]
 		log_match pp_query, data, before
 		@matches.set pp_query, entry[:id]
@@ -237,6 +287,51 @@ class Citer
 	def delete_cached(str)
 		@matches.delete_cached(str)
 		@bibdata.delete_cached(str)
+	end
+
+	def delete_by_exact_id(id)
+		if @bibdata.has_key?(id)
+			entry = @bibdata.get(id)
+			puts "Forgetting entry with PhilPapers ID: #{id}"
+			if entry && entry[:bibtex_id]
+				puts "  BibTeX ID: #{entry[:bibtex_id]}"
+			end
+			if entry && entry[:entry] && entry[:entry][:title]
+				puts "  Title: #{entry[:entry][:title]}"
+			end
+			@bibdata.instance_variable_get(:@store).transaction(false) do
+				@bibdata.instance_variable_get(:@store).delete(id)
+			end
+			puts "Entry deleted successfully."
+		else
+			puts "Warning: No entry found with PhilPapers ID '#{id}'"
+		end
+	end
+
+	def view_database(filter_regex = nil)
+		count = 0
+		@bibdata.instance_variable_get(:@store).transaction(true) do
+			@bibdata.instance_variable_get(:@store).roots.each do |key|
+				entry = @bibdata.instance_variable_get(:@store)[key]
+				next unless entry.is_a?(Hash) && entry[:bibtex]
+				
+				# Apply filter if provided
+				if filter_regex
+					bibtex_content = entry[:bibtex]
+					entry_data = entry[:entry]
+					searchable_text = "#{bibtex_content} #{entry_data[:title]} #{entry_data[:authors].join(' ')} #{entry_data[:year]}"
+					next unless searchable_text.match(Regexp.new(filter_regex, Regexp::IGNORECASE))
+				end
+				
+				puts "% PhilPapers ID: #{key}"
+				puts "% BibTeX ID: #{entry[:bibtex_id]}" if entry[:bibtex_id]
+				puts entry[:bibtex]
+				puts ""  # Add blank line between entries
+				count += 1
+			end
+		end
+		
+		puts "# Total entries displayed: #{count}"
 	end
 
 	def log_match(query, data, context = "(unavailable)")
@@ -314,7 +409,7 @@ class Citer
 			bibtex: bibtex
 		}
 
-		info "Added to database: #{id}".green
+		info "Added to database: #{id}".red
 		@bibdata.set(id, d)
 		d
 
@@ -322,7 +417,7 @@ class Citer
 
 	def get_format(id, format)
 		@queries += 1
-		get_uri("https://philpapers.org/utils/single_entry.pl?format=#{format}&eId=#{id}")
+    get_uri(Base_URL + "/utils/single_entry.pl?format=#{format}&eId=#{id}")
 
 	end
 
@@ -332,6 +427,7 @@ class Citer
 		#	sleep 1
 		#end
 		uri += "&apiKey=#{@config["apiKey"]}&apiId=#{@config["apiId"]}"
+    #puts "URL: #{uri}"
 		res = Net::HTTP.get_response(URI.parse(uri))
 		if res.is_a?(Net::HTTPSuccess)
 			return res.body
@@ -400,10 +496,19 @@ opt_parser = OptionParser.new do |opts|
   opts.on("-dDELETE", "--delete=DELETE", "Forget any search query OR bibtex entry matching the specified string as a regular expression. Use a dot (.) to delete everything. All the data will be refetched from PP as needed. This is useful if PP data have changed.") do |f|
 		args[:forget] = f
 	end
+  opts.on("--delete-by-id=ID", "Delete entry with the exact PhilPapers ID specified.") do |f|
+		args[:forget_by_id] = f
+	end
   opts.on("-vSTR", "--view=STR","View the cached entry record or entry id for query STR.") do |v|
-    citer = Citer.new(args, nil)
+    citer = Citer.new
     citer.debug_cache(v)
     exit(0)
+  end
+  opts.on("--view-db", "View all entries in the bibdata database, printing the bibtex of each item.") do
+    args[:view_db] = true
+  end
+  opts.on("--filter=REGEX", "When used with --view-db, filter entries matching the provided regular expression.") do |f|
+    args[:filter] = f
   end
 	
 	opts.on("-h", "--help", "Prints this help") do
@@ -418,6 +523,16 @@ citer = Citer.new
 opt_parser.parse!
 if args[:forget]
 	citer.delete_cached(args[:forget])	
+	exit(0)
+end
+
+if args[:forget_by_id]
+	citer.delete_by_exact_id(args[:forget_by_id])	
+	exit(0)
+end
+
+if args[:view_db]
+	citer.view_database(args[:filter])
 	exit(0)
 end
 
