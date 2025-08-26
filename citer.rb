@@ -322,7 +322,8 @@ class Citer
 
 	def get_format(id, format)
 		@queries += 1
-		get_uri("https://philpapers.org/utils/single_entry.pl?format=#{format}&eId=#{id}")
+		url = "https://philpapers.org/utils/single_entry.pl?format=#{format}&eId=#{id}"
+    get_uri(url)
 
 	end
 
@@ -401,7 +402,7 @@ opt_parser = OptionParser.new do |opts|
 		args[:forget] = f
 	end
   opts.on("-vSTR", "--view=STR","View the cached entry record or entry id for query STR.") do |v|
-    citer = Citer.new(args, nil)
+    citer = Citer.new
     citer.debug_cache(v)
     exit(0)
   end
